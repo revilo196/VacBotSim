@@ -84,7 +84,6 @@ namespace NEAT
         // Members
         /////////////////////
     private:
-    
         // ID of genome
         unsigned int m_ID;
         
@@ -148,17 +147,9 @@ namespace NEAT
         // used in steady state evolution
         bool m_Evaluated;
         
-        // the initial genome complexity
-        int m_initial_num_neurons;
-        int m_initial_num_links;
-        
         // A pointer to a class representing the phenotype's behavior
         // Used in novelty searches
         PhenotypeBehavior *m_PhenotypeBehavior;
-        // A Python object behavior
-#ifdef USE_BOOST_PYTHON
-        py::object m_behavior;
-#endif
         
         ////////////////////////////
         // Constructors
@@ -184,11 +175,7 @@ namespace NEAT
         
         // Builds this genome from an opened file
         Genome(std::ifstream &a_DataFile);
-    
-        // This creates a CTRNN fully-connected genome
-        Genome(unsigned int a_ID, unsigned int a_NumInputs, unsigned int a_NumHidden, unsigned int a_NumOutputs,
-               ActivationFunction a_OutputActType, ActivationFunction a_HiddenActType, const Parameters &a_Parameters);
-    
+        
         // This creates a standart minimal genome - perceptron-like structure
         Genome(unsigned int a_ID,
                unsigned int a_NumInputs,
@@ -197,8 +184,7 @@ namespace NEAT
                bool a_FS_NEAT, ActivationFunction a_OutputActType,
                ActivationFunction a_HiddenActType,
                unsigned int a_SeedType,
-               const Parameters &a_Parameters,
-               unsigned int a_NumLayers);
+               const Parameters &a_Parameters);
         
         /////////////
         // Other possible constructors for different types of networks go here
@@ -268,9 +254,9 @@ namespace NEAT
         bool HasDeadEnds() const;
         
         // Returns true if there is any looping path in the network
-        bool HasLoops();
+        bool HasLoops() const;
         
-        bool FailsConstraints(const Parameters &a_Parameters)
+        bool FailsConstraints(Parameters &a_Parameters) const
         {
             bool fails = false;
             
@@ -284,23 +270,7 @@ namespace NEAT
                 return true;
             }
             
-            // Custom constraints
-            if (a_Parameters.CustomConstraints != NULL)
-            {
-                if (a_Parameters.CustomConstraints(*this))
-                {
-                    return true;
-                }
-            }
-            
-            // for Python-based custom constraint callbacks
-#ifdef USE_BOOST_PYTHON
-            if (a_Parameters.pyCustomConstraints.ptr() != py::object().ptr()) // is it not None?
-            {
-                return py::extract<bool>(a_Parameters.pyCustomConstraints(*this));
-            }
-#endif
-            // add more constraints here
+            // add more consraints here
             return false;
         }
         
@@ -309,7 +279,7 @@ namespace NEAT
         void SetOffspringAmount(double a_oa);
         
         // This builds a fastnetwork structure out from the genome
-        void BuildPhenotype(NeuralNetwork &net);
+        void BuildPhenotype(NeuralNetwork &net) const;
         
         // Projects the phenotype's weights back to the genome
         void DerivePhenotypicChanges(NeuralNetwork &a_Net);
@@ -364,18 +334,6 @@ namespace NEAT
                     {
                         traits[tit->first] = bs::get<std::string>(t);
                     }
-                    if (t.type() == typeid(intsetelement))
-                    {
-                        traits[tit->first] = (bs::get<intsetelement>(t)).value;
-                    }
-                    if (t.type() == typeid(floatsetelement))
-                    {
-                        traits[tit->first] = (bs::get<floatsetelement>(t)).value;
-                    }
-                    if (t.type() == typeid(py::object))
-                    {
-                        traits[tit->first] = bs::get<py::object>(t);
-                    }
                 }
             }
             
@@ -424,8 +382,10 @@ namespace NEAT
                 py::dict traits = TraitMap2Dict((*it).m_Traits);
                 
                 py::list little;
+                //little.append( (*it).InnovationID() );
                 little.append( (*it).FromNeuronID() );
                 little.append( (*it).ToNeuronID() );
+                //little.append( (*it).IsRecurrent() );
                 little.append( traits );
                 links.append( little );
             }
@@ -480,11 +440,11 @@ namespace NEAT
         
         // Adds a new neuron to the genome
         // returns true if succesful
-        bool Mutate_AddNeuron(InnovationDatabase &a_Innovs, const Parameters &a_Parameters, RNG &a_RNG);
+        bool Mutate_AddNeuron(InnovationDatabase &a_Innovs, Parameters &a_Parameters, RNG &a_RNG);
         
         // Adds a new link to the genome
         // returns true if succesful
-        bool Mutate_AddLink(InnovationDatabase &a_Innovs, const Parameters &a_Parameters, RNG &a_RNG);
+        bool Mutate_AddLink(InnovationDatabase &a_Innovs, Parameters &a_Parameters, RNG &a_RNG);
         
         // Remove a random link from the genome
         // A cleanup procedure is invoked so any dead-ends or stranded neurons are also deleted
@@ -496,7 +456,7 @@ namespace NEAT
         bool Mutate_RemoveSimpleNeuron(InnovationDatabase &a_Innovs, RNG &a_RNG);
         
         // Perturbs the weights
-        bool Mutate_LinkWeights(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_LinkWeights(Parameters &a_Parameters, RNG &a_RNG);
         
         // Set all link weights to random values between [-R .. R]
         void Randomize_LinkWeights(double a_Range, RNG &a_RNG);
@@ -505,28 +465,28 @@ namespace NEAT
         void Randomize_Traits(const Parameters& a_Parameters, RNG &a_RNG);
         
         // Perturbs the A parameters of the neuron activation functions
-        bool Mutate_NeuronActivations_A(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_NeuronActivations_A(Parameters &a_Parameters, RNG &a_RNG);
         
         // Perturbs the B parameters of the neuron activation functions
-        bool Mutate_NeuronActivations_B(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_NeuronActivations_B(Parameters &a_Parameters, RNG &a_RNG);
         
         // Changes the activation function type for a random neuron
-        bool Mutate_NeuronActivation_Type(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_NeuronActivation_Type(Parameters &a_Parameters, RNG &a_RNG);
         
         // Perturbs the neuron time constants
-        bool Mutate_NeuronTimeConstants(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_NeuronTimeConstants(Parameters &a_Parameters, RNG &a_RNG);
         
         // Perturbs the neuron biases
-        bool Mutate_NeuronBiases(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_NeuronBiases(Parameters &a_Parameters, RNG &a_RNG);
 
         // Perturbs the neuron traits
-        bool Mutate_NeuronTraits(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_NeuronTraits(Parameters &a_Parameters, RNG &a_RNG);
 
         // Perturbs the link traits
-        bool Mutate_LinkTraits(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_LinkTraits(Parameters &a_Parameters, RNG &a_RNG);
         
         // Perturbs the genome traits
-        bool Mutate_GenomeTraits(const Parameters &a_Parameters, RNG &a_RNG);
+        void Mutate_GenomeTraits(Parameters &a_Parameters, RNG &a_RNG);
 
         ///////////
         // Mating
@@ -730,7 +690,7 @@ namespace NEAT
 
 #endif
 
-#define DBG(x) { std::cerr << x << std::endl; }
+#define DBG(x) { std::cerr << x << "\n"; }
     
     
 } // namespace NEAT

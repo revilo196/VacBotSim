@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include "Random.h"
 #include "Utils.h"
 
@@ -40,7 +39,7 @@ namespace NEAT
 
 
 // Seeds the random number generator with this value
-void RNG::Seed(long a_Seed)
+void RNG::Seed(int a_Seed)
 {
 #ifdef USE_BOOST_RANDOM
     gen.seed(a_Seed);
@@ -51,8 +50,7 @@ void RNG::Seed(long a_Seed)
 
 void RNG::TimeSeed()
 {
-    auto now = boost::posix_time::second_clock::local_time();
-    Seed(now.time_of_day().total_milliseconds());
+    Seed(time(0));
 }
 
 // Returns randomly either 1 or -1
@@ -77,22 +75,6 @@ int RNG::RandInt(int aX, int aY)
     boost::random::uniform_int_distribution<> dist(aX, aY);
     return dist(gen);
 #else
-    if (aX == aY)
-    {
-        return aX;
-    }
-    if (aX == (aY-1))
-    {
-        // for two consecutives, pick either with equal probability
-        if (RandFloat() < 0.5)
-        {
-            return aX;
-        }
-        else
-        {
-            return aY;
-        }
-    }
     return aX + (rand() % (aY - aX + 1));
 #endif
     

@@ -47,8 +47,6 @@ namespace py = boost::python;
 namespace NEAT
 {
 
-// forward
-class Genome;
 
 //////////////////////////////////////////////
 // The NEAT Parameters class
@@ -89,26 +87,11 @@ public:
     // search quickly, yet less efficient, leave this to true.
     bool AllowClones;
 
-    // Keep an archive of genomes and don't allow any new genome to exist in the acrhive or the population
-    bool ArchiveEnforcement;
-    
-    // Normalize genome size when calculating compatibility
-    bool NormalizeGenomeSize;
-    
-    // Pointer to a function that specifies custom topology constraints
-    // Should return true if the genome FAILS to meet the constraints
-    bool (*CustomConstraints)(Genome& g);
-    
-#ifdef USE_BOOST_PYTHON
-    // same as above, but for Python
-    py::object pyCustomConstraints;
-#endif
-    
-    ////////////////////////////////
+   ////////////////////////////////
     // GA Parameters
     ////////////////////////////////
 
-    // AgeGens treshold, meaning if a species is below it, it is considered young
+    // Age treshold, meaning if a species is below it, it is considered young
     unsigned int YoungAgeTreshold;
 
     // Fitness boost multiplier for young species (1.0 means no boost)
@@ -122,7 +105,7 @@ public:
     // Setting this value to 0.0 makes the system to behave like regular NEAT.
     double StagnationDelta;
 
-    // AgeGens threshold, meaning if a species if above it, it is considered old
+    // Age threshold, meaning if a species if above it, it is considered old
     unsigned int OldAgeTreshold;
 
     // Multiplier that penalizes old species.
@@ -267,9 +250,6 @@ public:
 
     // Probability for a particular gene to be mutated. 1.0 = 100%
     double WeightMutationRate;
-    
-    // Probability for a particular gene to be mutated via replacement of the weight. 1.0 = 100%
-    double WeightReplacementRate;
 
     // Maximum perturbation for a weight mutation
     double WeightMutationMaxPower;
@@ -510,26 +490,6 @@ public:
                     t.dep_values.push_back( py::extract<std::string>(pydepvals[ix]) );
                 }
             }
-            /*if (st == "intset")
-            {
-                for(int ix=0; ix<py::len(pydepvals); ix++)
-                {
-                    intsetelement x;
-                    int m = py::extract<int>(pydepvals[ix]);
-                    x.value = m;
-                    t.dep_values.push_back( x );
-                }
-            }
-            if (st == "floatset")
-            {
-                for(int ix=0; ix<py::len(pydepvals); ix++)
-                {
-                    floatsetelement x;
-                    double m = py::extract<double>(pydepvals[ix]);
-                    x.value = m;
-                    t.dep_values.push_back( x );
-                }
-            }*/
             else
             {
                 throw std::runtime_error("Unknown trait type");
@@ -574,51 +534,6 @@ public:
             }
             t.m_Details = itp;
         }
-        else if (t.type == "intset")
-        {
-            IntSetTraitParameters itp;
-            py::dict details = py::extract<py::dict>(trait_params["details"]);
-            py::list set = py::extract<py::list>(details["set"]);
-            py::list probs = py::extract<py::list>(details["probs"]);
-            for(int i=0; i<py::len(set); i++)
-            {
-                int x = py::extract<int>(set[i]);
-                intsetelement ise;
-                ise.value = x;
-                itp.set.push_back(ise);
-            }
-            for(int i=0; i<py::len(probs); i++)
-            {
-                double d = py::extract<double>(probs[i]);
-                itp.probs.push_back(d);
-            }
-            t.m_Details = itp;
-        }
-        else if (t.type == "floatset")
-        {
-            FloatSetTraitParameters itp;
-            py::dict details = py::extract<py::dict>(trait_params["details"]);
-            py::list set = py::extract<py::list>(details["set"]);
-            py::list probs = py::extract<py::list>(details["probs"]);
-            for(int i=0; i<py::len(set); i++)
-            {
-                double x = py::extract<double>(set[i]);
-                floatsetelement ise;
-                ise.value = x;
-                itp.set.push_back(ise);
-            }
-            for(int i=0; i<py::len(probs); i++)
-            {
-                double d = py::extract<double>(probs[i]);
-                itp.probs.push_back(d);
-            }
-            t.m_Details = itp;
-        }
-        else if (t.type == "pyobject")
-        {
-            py::object itp = py::extract<py::object>(trait_params["details"]);
-            t.m_Details = itp;
-        }
 
         return t;
     }
@@ -628,11 +543,9 @@ public:
         py::dict t;
         t["importance_coeff"] = pms.m_ImportanceCoeff;
         t["mutation_prob"] = pms.m_MutationProb;
-        py::object dt;
+        py::dict dt;
         if (pms.type == "int")
         {
-            dt = py::dict();
-
             t["type"] = "int";
             dt["min"] = bs::get<IntTraitParameters>(pms.m_Details).min;
             dt["max"] = bs::get<IntTraitParameters>(pms.m_Details).max;
@@ -641,8 +554,6 @@ public:
         }
         if (pms.type == "float")
         {
-            dt = py::dict();
-
             t["type"] = "float";
             dt["min"] = bs::get<FloatTraitParameters>(pms.m_Details).min;
             dt["max"] = bs::get<FloatTraitParameters>(pms.m_Details).max;
@@ -651,8 +562,6 @@ public:
         }
         if (pms.type == "str")
         {
-            dt = py::dict();
-
             t["type"] = "str";
             py::list set;
             py::list probs;
@@ -663,49 +572,10 @@ public:
                 probs.append(bs::get<StringTraitParameters>(pms.m_Details).probs[i]);
             }
             
-            dt["set"] = set;
-            dt["probs"] = probs;
+            dt["set"] = bs::get<FloatTraitParameters>(pms.m_Details).min;
+            dt["probs"] = bs::get<FloatTraitParameters>(pms.m_Details).max;
         }
-        if (pms.type == "intset")
-        {
-            dt = py::dict();
-
-            t["type"] = "intset";
-            py::list set;
-            py::list probs;
-            int ssize = bs::get<IntSetTraitParameters>(pms.m_Details).set.size();
-            for(int i=0; i<ssize; i++)
-            {
-                set.append(bs::get<IntSetTraitParameters>(pms.m_Details).set[i].value);
-                probs.append(bs::get<IntSetTraitParameters>(pms.m_Details).probs[i]);
-            }
-
-            dt["set"] = set;
-            dt["probs"] = probs;
-        }
-        if (pms.type == "floatset")
-        {
-            dt = py::dict();
-
-            t["type"] = "floatset";
-            py::list set;
-            py::list probs;
-            int ssize = bs::get<FloatSetTraitParameters>(pms.m_Details).set.size();
-            for(int i=0; i<ssize; i++)
-            {
-                set.append(bs::get<FloatSetTraitParameters>(pms.m_Details).set[i].value);
-                probs.append(bs::get<FloatSetTraitParameters>(pms.m_Details).probs[i]);
-            }
-
-            dt["set"] = set;
-            dt["probs"] = probs;
-        }
-        if (pms.type == "pyobject")
-        {
-            t["type"] = "pyobject";
-            dt = bs::get<py::object>(pms.m_Details);
-        }
-
+        
         t["details"] = dt;
         
         return t;
@@ -813,7 +683,6 @@ public:
         ar & MaxSpecies;
         ar & InnovationsForever;
         ar & AllowClones;
-        ar & NormalizeGenomeSize;
         ar & YoungAgeTreshold;
         ar & YoungAgeFitnessBoost;
         ar & SpeciesMaxStagnation;
@@ -858,7 +727,6 @@ public:
         ar & MutateWeightsSevereProb;
         ar & WeightMutationRate;
         ar & WeightMutationMaxPower;
-        ar & WeightReplacementRate;
         ar & WeightReplacementMaxPower;
         ar & MaxWeight;
         ar & MutateActivationAProb;
@@ -931,8 +799,6 @@ public:
         ar & GeometrySeed;
         ar & TournamentSize;
         ar & EliteFraction;
-
-        ar & ArchiveEnforcement;
     }
     
 #endif

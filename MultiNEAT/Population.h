@@ -118,9 +118,6 @@ private:
     // Number of generations since the best fitness changed
     unsigned int m_GensSinceBestFitnessLastChanged;
 
-    // Number of evaluations since the best fitness changed
-    unsigned int m_EvalsSinceBestFitnessLastChanged;
-
     // How many generations passed until the last change of MPC
     unsigned int m_GensSinceMPCLastChanged;
 
@@ -128,9 +125,6 @@ private:
     std::vector<Genome> m_Genomes;
 
 public:
-
-    // The archive
-    std::vector<Genome> m_GenomeArchive;
 
     // Random number generator
     RNG m_RNG;
@@ -163,7 +157,7 @@ public:
     // Destructor
     ////////////////////////////
 
-    // TODO: move all header code into the source file,
+    // TODO: Major: move all header code into the source file,
     // make as much private members as possible
 
     ////////////////////////////
@@ -220,7 +214,6 @@ public:
     void IncrementNextSpeciesID() { m_NextSpeciesID++; }
 
     Genome& AccessGenomeByIndex(unsigned int const a_idx);
-    Genome& AccessGenomeByID(unsigned int const a_id);
 
     InnovationDatabase& AccessInnovationDatabase() { return m_InnovationDatabase; }
 
@@ -273,7 +266,7 @@ public:
     // Novelty search
 
     // A pointer to the archive of PhenotypeBehaviors
-    // Necessary to contain derived custom classes.
+    // Not necessary to contain derived custom classes.
     std::vector< PhenotypeBehavior >* m_BehaviorArchive;
 
     // Call this function to allocate memory for your custom

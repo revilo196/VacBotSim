@@ -5,31 +5,38 @@
 #ifndef VACBOTSIM_VACENV_H
 #define VACBOTSIM_VACENV_H
 
-#include "Box2D/Box2D.h"
-#include "VacBot.h"
-#include "RoomWorld.h"
 #include <mutex>
+#include <vector>
 
-
+class VacBot;
+class RoomWorld;
+class b2World;
 
 class VacEnv {
     friend class VacEnvWindow;
-
     VacBot * bot;
     RoomWorld * room;
-    //std::mutex acc;
+
+
 public:
+    //std::mutex acc;
     b2World * world;
+    float score;
+    int collision;
+    bool running;
     //Motor control Status
-    int m_controlStateA;
-    int m_controlStateB;
+    //int m_controlStateA;
+    //int m_controlStateB;
+    void reset();
+    std::vector<double> step(int input, float dt);
 
-    std::vector<float> step(int input, float dt);
-
-    explicit VacEnv();
+    VacEnv();
     ~VacEnv();
 
 };
+
+
+
 
 
 #endif //VACBOTSIM_VACENV_H

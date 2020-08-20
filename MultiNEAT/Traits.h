@@ -6,54 +6,16 @@
 #define MULTINEAT_TRAITS_H
 
 #include <string>
-#include <vector>
 #include <boost/any.hpp>
 #include <boost/variant.hpp>
 #include <cmath>
-
-#ifdef USE_BOOST_PYTHON
-#include <boost/python.hpp>
-#endif
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/shared_ptr.hpp>
+#include <vector>
 
 namespace bs = boost;
-#ifdef USE_BOOST_PYTHON
-namespace py = bs::python;
-#endif
 
 namespace NEAT
 {
-    class intsetelement
-    {
-    public:
-        // Comparison operator
-        bool operator==(const intsetelement& rhs) const
-        {
-            return rhs.value == value;
-        }
-
-        int value;
-    };
-    class floatsetelement
-    {
-    public:
-        // Comparison operator
-        bool operator==(const floatsetelement& rhs) const
-        {
-            return rhs.value == value;
-        }
-
-        double value;
-    };
-    
-    typedef bs::variant<int, double, std::string, intsetelement, floatsetelement
-#ifdef USE_BOOST_PYTHON
-  , py::object
-#endif
-    > TraitType;
+    typedef bs::variant<int, bool, double, std::string> TraitType;
 
     class IntTraitParameters
     {
@@ -65,7 +27,6 @@ namespace NEAT
         IntTraitParameters()
         {
             min = 0; max = 0;
-            mut_power = 0;
             mut_replace_prob = 0;
         }
     };
@@ -79,7 +40,6 @@ namespace NEAT
         FloatTraitParameters()
         {
             min = 0; max = 0;
-            mut_power = 0;
             mut_replace_prob = 0;
         }
     };
@@ -89,19 +49,6 @@ namespace NEAT
         std::vector<std::string> set; // the set of possible strings
         std::vector<double> probs; // their respective probabilities for appearance
     };
-    class IntSetTraitParameters
-    {
-    public:
-        std::vector<intsetelement> set; // the set of possible ints
-        std::vector<double> probs; // their respective probabilities for appearance
-    };
-    class FloatSetTraitParameters
-    {
-    public:
-        std::vector<floatsetelement> set; // the set of possible floats
-        std::vector<double> probs; // their respective probabilities for appearance
-    };
-
 
     class TraitParameters
     {
@@ -109,16 +56,8 @@ namespace NEAT
         double m_ImportanceCoeff;
         double m_MutationProb;
 
-        std::string type; // can be "int", "float", "string", "intset", "floatset", "pyobject"
-        bs::variant<IntTraitParameters,
-                    FloatTraitParameters,
-                    StringTraitParameters,
-                    IntSetTraitParameters,
-                    FloatSetTraitParameters
-#ifdef USE_BOOST_PYTHON
-                  , py::object
-#endif
-        > m_Details;
+        std::string type; // can be "int", "bool", "float", "string"
+        bs::variant<IntTraitParameters, FloatTraitParameters, StringTraitParameters> m_Details;
 
         std::string dep_key; // counts only if this other trait exists..
         std::vector<TraitType> dep_values; // and has one of these values

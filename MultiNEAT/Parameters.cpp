@@ -70,27 +70,14 @@ namespace NEAT
         // search quickly, yet less efficient, leave this to true.
         AllowClones = true;
 
-        // Keep an archive of genomes and don't allow any new genome to exist in the archive or the population
-        ArchiveEnforcement = false;
-    
-        // When true, don't have a special bias neuron and treat all inputs equal
-        DontUseBiasNeuron = false;
-    
-        // When false, this prevents any recurrent pathways in the genomes from forming
-        AllowLoops = true;
-    
-        // Normalize genome size when calculating compatibility
-        NormalizeGenomeSize = true;
-    
-        // Pointer to a function that specifies custom topology/trait constraints
-        // Should return true if the genome FAILS to meet the constraints
-        CustomConstraints = NULL;
-        
+
+
+
         ////////////////////////////////
         // GA Parameters
         ////////////////////////////////
 
-        // AgeGens treshold, meaning if a species is below it, it is considered young
+        // Age treshold, meaning if a species is below it, it is considered young
         YoungAgeTreshold = 5;
 
         // Fitness boost multiplier for young species (1.0 means no boost)
@@ -104,7 +91,7 @@ namespace NEAT
         // Setting this value to 0.0 makes the system to behave like regular NEAT.
         StagnationDelta = 0.0;
 
-        // AgeGens threshold, meaning if a species is above it, it is considered old
+        // Age threshold, meaning if a species is above it, it is considered old
         OldAgeTreshold = 30;
 
         // Multiplier that penalizes old species.
@@ -264,9 +251,6 @@ namespace NEAT
 
         // Maximum perturbation for a weight mutation
         WeightMutationMaxPower = 1.0;
-    
-        // Probability for a particular gene to be mutated via replacement of the weight. 1.0 = 100%
-        WeightReplacementRate = 0.2;
 
         // Maximum magnitude of a replaced weight
         WeightReplacementMaxPower = 1.0;
@@ -370,7 +354,13 @@ namespace NEAT
         // Genome properties params
         /////////////////////////////
 
-    
+        // When true, don't have a special bias neuron and treat all inputs equal
+        bool DontUseBiasNeuron = false;
+
+        // When false, this prevents any recurrent pathways in the genomes from forming
+        bool AllowLoops = true;
+
+
         /////////////////////////////////////
         // Speciation parameters
         /////////////////////////////////////
@@ -468,6 +458,9 @@ namespace NEAT
         Reset();
     }
 
+    //void Parameters::
+
+
     int Parameters::Load(std::ifstream &a_DataFile)
     {
         std::string s, tf;
@@ -516,17 +509,7 @@ namespace NEAT
                 else
                     AllowClones = false;
             }
-    
-            if (s == "NormalizeGenomeSize")
-            {
-                a_DataFile >> tf;
-                if (tf == "true" || tf == "1" || tf == "1.0")
-                    NormalizeGenomeSize = true;
-                else
-                    NormalizeGenomeSize = false;
-            }
-    
-    
+
             if (s == "YoungAgeTreshold")
                 a_DataFile >> YoungAgeTreshold;
 
@@ -697,10 +680,7 @@ namespace NEAT
 
             if (s == "WeightMutationMaxPower")
                 a_DataFile >> WeightMutationMaxPower;
-    
-            if (s == "WeightReplacementRate")
-                a_DataFile >> WeightReplacementRate;
-    
+
             if (s == "WeightReplacementMaxPower")
                 a_DataFile >> WeightReplacementMaxPower;
 
@@ -803,15 +783,6 @@ namespace NEAT
                     AllowLoops = true;
                 else
                     AllowLoops = false;
-            }
-
-            if (s == "ArchiveEnforcement")
-            {
-                a_DataFile >> tf;
-                if (tf == "true" || tf == "1" || tf == "1.0")
-                    ArchiveEnforcement = true;
-                else
-                    ArchiveEnforcement = false;
             }
 
             if (s == "DisjointCoeff")
@@ -956,7 +927,6 @@ namespace NEAT
         fprintf(a_fstream, "MaxSpecies %d\n", MaxSpecies);
         fprintf(a_fstream, "InnovationsForever %s\n", InnovationsForever == true ? "true" : "false");
         fprintf(a_fstream, "AllowClones %s\n", AllowClones == true ? "true" : "false");
-        fprintf(a_fstream, "NormalizeGenomeSize %s\n", NormalizeGenomeSize == true ? "true" : "false");
         fprintf(a_fstream, "YoungAgeTreshold %d\n", YoungAgeTreshold);
         fprintf(a_fstream, "YoungAgeFitnessBoost %3.20f\n", YoungAgeFitnessBoost);
         fprintf(a_fstream, "SpeciesDropoffAge %d\n", SpeciesMaxStagnation);
@@ -1004,7 +974,6 @@ namespace NEAT
         fprintf(a_fstream, "MutateWeightsSevereProb %3.20f\n", MutateWeightsSevereProb);
         fprintf(a_fstream, "WeightMutationRate %3.20f\n", WeightMutationRate);
         fprintf(a_fstream, "WeightMutationMaxPower %3.20f\n", WeightMutationMaxPower);
-        fprintf(a_fstream, "WeightReplacementRate %3.20f\n", WeightReplacementRate);
         fprintf(a_fstream, "WeightReplacementMaxPower %3.20f\n", WeightReplacementMaxPower);
         fprintf(a_fstream, "MaxWeight %3.20f\n", MaxWeight);
         fprintf(a_fstream, "MutateActivationAProb %3.20f\n", MutateActivationAProb);
@@ -1039,7 +1008,6 @@ namespace NEAT
         fprintf(a_fstream, "MinNeuronBias %3.20f\n", MinNeuronBias);
         fprintf(a_fstream, "MaxNeuronBias %3.20f\n", MaxNeuronBias);
         fprintf(a_fstream, "DontUseBiasNeuron %s\n", DontUseBiasNeuron == true ? "true" : "false");
-        fprintf(a_fstream, "ArchiveEnforcement %s\n", ArchiveEnforcement == true ? "true" : "false");
         fprintf(a_fstream, "AllowLoops %s\n", AllowLoops == true ? "true" : "false");
         fprintf(a_fstream, "DisjointCoeff %3.20f\n", DisjointCoeff);
         fprintf(a_fstream, "ExcessCoeff %3.20f\n", ExcessCoeff);

@@ -142,39 +142,6 @@ namespace NEAT
                     int idx = a_RNG.Roulette(probs);
                     t = itp.set[idx];
                 }
-                if (it->second.type == "intset")
-                {
-                    IntSetTraitParameters itp = bs::get<IntSetTraitParameters>(it->second.m_Details);
-                    std::vector<double> probs = itp.probs;
-                    if (itp.set.size() == 0)
-                    {
-                        throw std::runtime_error("Empty set of int traits");
-                    }
-                    probs.resize(itp.set.size());
-
-                    int idx = a_RNG.Roulette(probs);
-                    t = itp.set[idx];
-                }
-                if (it->second.type == "floatset")
-                {
-                    FloatSetTraitParameters itp = bs::get<FloatSetTraitParameters>(it->second.m_Details);
-                    std::vector<double> probs = itp.probs;
-                    if (itp.set.size() == 0)
-                    {
-                        throw std::runtime_error("Empty set of float traits");
-                    }
-                    probs.resize(itp.set.size());
-
-                    int idx = a_RNG.Roulette(probs);
-                    t = itp.set[idx];
-                }
-#ifdef USE_BOOST_PYTHON
-                if (it->second.type == "pyobject")
-                {
-                    py::object itp = bs::get<py::object>(it->second.m_Details);
-                    t = itp(); // details is a function that returns a random instance of the trait
-                }
-#endif
 
                 Trait tr;
                 tr.value = t;
@@ -188,7 +155,7 @@ namespace NEAT
         // Traits are merged with this other parent
         void MateTraits(const std::map<std::string, Trait> &t, RNG &a_RNG)
         {
-            for(auto it = t.begin(); it != t.end(); it++)
+            for (auto it = t.begin(); it != t.end(); it++)
             {
                 TraitType mine = m_Traits[it->first].value;
                 TraitType yours = it->second.value;
@@ -198,55 +165,31 @@ namespace NEAT
                     throw std::runtime_error("Types of traits doesn't match");
                 }
 
-                // if generic python object, forward all processing to its method
-#ifdef USE_BOOST_PYTHON
-                if (mine.type() == typeid(py::object))
+                if (a_RNG.RandFloat() < 0.5) // pick either one
                 {
-                    // call mating function
-                    m_Traits[it->first].value = bs::get<py::object>(mine).attr("mate")(bs::get<py::object>(yours));
+                    m_Traits[it->first].value = (a_RNG.RandFloat() < 0.5)? mine : yours;
                 }
                 else
-#endif
                 {
-
-                    if (a_RNG.RandFloat() < 0.5) // pick either one
+                    // try to average
+                    if (mine.type() == typeid(int))
                     {
-                        m_Traits[it->first].value = (a_RNG.RandFloat() < 0.5) ? mine : yours;
+                        int m1 = bs::get<int>(mine);
+                        int m2 = bs::get<int>(yours);
+                        m_Traits[it->first].value = (m1 + m2) / 2;
                     }
-                    else
+
+                    if (mine.type() == typeid(double))
                     {
-                        // try to average
-                        if (mine.type() == typeid(int))
-                        {
-                            int m1 = bs::get<int>(mine);
-                            int m2 = bs::get<int>(yours);
-                            m_Traits[it->first].value = (m1 + m2) / 2;
-                        }
+                        double m1 = bs::get<double>(mine);
+                        double m2 = bs::get<double>(yours);
+                        m_Traits[it->first].value = (m1 + m2) / 2.0;
+                    }
 
-                        if (mine.type() == typeid(double))
-                        {
-                            double m1 = bs::get<double>(mine);
-                            double m2 = bs::get<double>(yours);
-                            m_Traits[it->first].value = (m1 + m2) / 2.0;
-                        }
-
-                        if (mine.type() == typeid(std::string))
-                        {
-                            // strings are always either-or
-                            m_Traits[it->first].value = (a_RNG.RandFloat() < 0.5) ? mine : yours;
-                        }
-
-                        if (mine.type() == typeid(intsetelement))
-                        {
-                            // int sets are always either-or
-                            m_Traits[it->first].value = (a_RNG.RandFloat() < 0.5) ? mine : yours;
-                        }
-
-                        if (mine.type() == typeid(floatsetelement))
-                        {
-                            // float sets are always either-or
-                            m_Traits[it->first].value = (a_RNG.RandFloat() < 0.5) ? mine : yours;
-                        }
+                    if (mine.type() == typeid(std::string))
+                    {
+                        // strings are always either-or
+                        m_Traits[it->first].value = (a_RNG.RandFloat() < 0.5) ? mine : yours;
                     }
                 }
             }
@@ -254,9 +197,8 @@ namespace NEAT
 
 
         // Traits are mutated according to parameters
-        bool MutateTraits(const std::map<std::string, TraitParameters> &tp, RNG &a_RNG)
+        void MutateTraits(const std::map<std::string, TraitParameters> &tp, RNG &a_RNG)
         {
-            bool did_mutate = false;
             for(auto it = tp.begin(); it != tp.end(); it++)
             {
                 // Check what kind of type is this and modify it
@@ -299,22 +241,16 @@ namespace NEAT
                             {
                                 // replace
                                 int val = 0;
-                                int cur = bs::get<int>(m_Traits[it->first].value);
                                 val = a_RNG.RandInt(itp.min, itp.max);
                                 m_Traits[it->first].value = val;
-                                if (cur != val)
-                                    did_mutate = true;
                             }
                             else
                             {
                                 // modify
                                 int val = bs::get<int>(m_Traits[it->first].value);
-                                int cur = val;
                                 val += a_RNG.RandInt(-itp.mut_power, itp.mut_power);
                                 Clamp(val, itp.min, itp.max);
                                 m_Traits[it->first].value = val;
-                                if (cur != val)
-                                    did_mutate = true;
                             }
                         }
                     }
@@ -330,23 +266,17 @@ namespace NEAT
                             {
                                 // replace
                                 double val = 0;
-                                double cur = bs::get<double>(m_Traits[it->first].value);
                                 val = a_RNG.RandFloat();
                                 Scale(val, 0, 1, itp.min, itp.max);
                                 m_Traits[it->first].value = val;
-                                if (cur != val)
-                                    did_mutate = true;
                             }
                             else
                             {
                                 // modify
                                 double val = bs::get<double>(m_Traits[it->first].value);
-                                double cur = val;
                                 val += a_RNG.RandFloatSigned() * itp.mut_power;
                                 Clamp(val, itp.min, itp.max);
                                 m_Traits[it->first].value = val;
-                                if (cur != val)
-                                    did_mutate = true;
                             }
                         }
                     }
@@ -357,52 +287,12 @@ namespace NEAT
                         probs.resize(itp.set.size());
 
                         int idx = a_RNG.Roulette(probs);
-                        std::string cur = bs::get<std::string>(m_Traits[it->first].value);
 
                         // now choose the new idx from the set
                         m_Traits[it->first].value = itp.set[idx];
-                        if (cur != itp.set[idx])
-                            did_mutate = true;
                     }
-                    if (it->second.type == "intset")
-                    {
-                        IntSetTraitParameters itp = bs::get<IntSetTraitParameters>(it->second.m_Details);
-                        std::vector<double> probs = itp.probs;
-                        probs.resize(itp.set.size());
-
-                        int idx = a_RNG.Roulette(probs);
-                        intsetelement cur = bs::get<intsetelement>(m_Traits[it->first].value);
-
-                        // now choose the new idx from the set
-                        m_Traits[it->first].value = itp.set[idx];
-                        if(cur.value != itp.set[idx].value)
-                            did_mutate = true;
-                    }
-                    if (it->second.type == "floatset")
-                    {
-                        FloatSetTraitParameters itp = bs::get<FloatSetTraitParameters>(it->second.m_Details);
-                        std::vector<double> probs = itp.probs;
-                        probs.resize(itp.set.size());
-
-                        int idx = a_RNG.Roulette(probs);
-                        floatsetelement cur = bs::get<floatsetelement>(m_Traits[it->first].value);
-
-                        // now choose the new idx from the set
-                        m_Traits[it->first].value = itp.set[idx];
-                        if(cur.value != itp.set[idx].value)
-                            did_mutate = true;
-                    }
-#ifdef USE_BOOST_PYTHON
-                    if (it->second.type == "pyobject")
-                    {
-                        m_Traits[it->first].value = bs::get<py::object>(m_Traits[it->first].value).attr("mutate")();
-                        did_mutate = true;
-                    }
-#endif
                 }
             }
-
-            return did_mutate;
         }
 
         // Compute and return distances between each matching pair of traits
@@ -459,7 +349,7 @@ namespace NEAT
                     }
                     if (mine.type() == typeid(std::string))
                     {
-                        // distance between strings - matching is 0, non-matching is 1
+                        // distance between stringss - matching is 0, non-matching is 1
                         if (bs::get<std::string>(mine) == bs::get<std::string>(yours))
                         {
                             dist[it->first] = 0.0;
@@ -469,28 +359,12 @@ namespace NEAT
                             dist[it->first] = 1.0;
                         }
                     }
-                    if (mine.type() == typeid(intsetelement))
-                    {
-                        // distance between ints - calculate directly
-                        dist[it->first] = abs((bs::get<intsetelement>(mine)).value - (bs::get<intsetelement>(yours)).value);
-                    }
-                    if (mine.type() == typeid(floatsetelement))
-                    {
-                        // distance between floats - calculate directly
-                        dist[it->first] = abs((bs::get<floatsetelement>(mine)).value - (bs::get<floatsetelement>(yours)).value);
-                    }
-#ifdef USE_BOOST_PYTHON
-                    if (mine.type() == typeid(py::object))
-                    {
-                        // distance between objects - calculate via method
-                        dist[it->first] = py::extract<double>(bs::get<py::object>(mine).attr("distance_to")(bs::get<py::object>(yours)));
-                    }
-#endif
                 }
             }
 
             return dist;
         }
+
     };
 
 
@@ -503,7 +377,7 @@ namespace NEAT
         // Members
         /////////////////////
 
-    public:
+    private:
 
         // These variables are initialized once and cannot be changed
         // anymore
@@ -646,7 +520,7 @@ namespace NEAT
         // Members
         /////////////////////
 
-    public:
+    private:
         // These variables are initialized once and cannot be changed
         // anymore
 
@@ -730,23 +604,6 @@ namespace NEAT
         NeuronGene()
         {
 
-        }
-        
-        /*friend bool operator!=(const NeuronGene &a_lhs, const NeuronGene &a_rhs)
-        {
-            return (a_lhs.m_ID != a_rhs.m_ID);
-        }*/
-        
-        friend bool operator==(const NeuronGene &a_lhs, const NeuronGene &a_rhs)
-        {
-            return (a_lhs.m_ID == a_rhs.m_ID) &&
-                    (a_lhs.m_Type == a_rhs.m_Type) &&
-                    (a_lhs.m_SplitY == a_rhs.m_SplitY) &&
-                    (a_lhs.m_A == a_rhs.m_A) &&
-                    (a_lhs.m_B == a_rhs.m_B) &&
-                    (a_lhs.m_TimeConstant == a_rhs.m_TimeConstant) &&
-                    (a_lhs.m_Bias == a_rhs.m_Bias) &&
-                    (a_lhs.m_ActFunction == a_rhs.m_ActFunction);
         }
 
         NeuronGene(NeuronType a_type, int a_id, double a_splity)

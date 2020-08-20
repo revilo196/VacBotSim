@@ -7,33 +7,32 @@
 #include "MultiNEAT/PhenotypeBehavior.h"
 #include "MultiNEAT/Parameters.h"
 
-
+    #include <cstdio>
 #include "VacEnv/VacEnv.h"
 #include "VacEnv/VacEnvWindow.h"
 
 using namespace NEAT;
 
-#define CORES 14
-#define SEED 35216958
-#define POP_SIZE 512
+#define CORES 16
+#define SEED 352169585
 
-void simulation();
-void epoch(int generation );
-void epochPart(double * fittnesses, int from, int to, int coreID) ;
-double fittness(Genome * g,int coreID);
+void simulation(Population * pop);
+void epoch(unsigned int generation, Population * pop );
+void epochPart(double * fittnesses,unsigned int from, unsigned int to,unsigned int coreID, Population * pop) ;
+double fittness(Genome &g,unsigned int coreID);
 
-Parameters params;
 Population * pop;
 
 int main(int argv, char** args) {
     std::cout << "start main" << endl;
-    //VacEnvWindow::init(256,-50,50,-50,50);
-    //std::thread first (VacEnvWindow::run);
+    VacEnvWindow::init(256,-50,50,-50,50);
+    std::thread first (VacEnvWindow::run);
     std::cout << "window open?" << endl;
-    params = Parameters();
+    std::freopen("output.txt","w",stdout);
+
+    Parameters params;
 
     params.GeometrySeed = true;
-
 
     params.PopulationSize = 512;
     params.DynamicCompatibility = true;
@@ -47,7 +46,6 @@ int main(int argv, char** args) {
     params.RouletteWheelSelection = false;
     params.RecurrentProb = 0.0;
     params.OverallMutationRate = 0.8;
-
     params.MutateWeightsProb = 0.90;
 
     params.WeightMutationMaxPower = 2.5;
@@ -66,7 +64,7 @@ int main(int argv, char** args) {
 
     params.ActivationFunction_SignedSigmoid_Prob = 0.0;
     params.ActivationFunction_UnsignedSigmoid_Prob = 1.0;
-    params.ActivationFunction_Tanh_Prob = 0.0;
+    params.ActivationFunction_Tanh_Prob = 0.5;
     params.ActivationFunction_SignedStep_Prob = 0.0;
 
     params.CrossoverRate = 0.75 ;
@@ -77,7 +75,6 @@ int main(int argv, char** args) {
     params.MutateLinkTraitsProb = 0;
 
     params.AllowLoops = true;
-
 
     params.DivisionThreshold = 0.5;
     params.VarianceThreshold = 0.03;
@@ -98,32 +95,41 @@ int main(int argv, char** args) {
     //params.CustomConstraints = constraints;
 
     std::cout << "create genom" << endl;
-    Genome g(0, 7, 8,4, true, NEAT::SOFTPLUS, NEAT::TANH, 0, params, 5);// ignored for seed_type == 0, specifies number of hidden units if seed_type == 1
+    Genome g(0,8, 8,5, true, NEAT::SOFTPLUS, NEAT::RELU, 0, params);// ignored for seed_type == 0, specifies number of hidden units if seed_type == 1
 
     std::cout << "create pop" << endl;
 
-    try {
 
-        pop = new Population(g, params, true, 1.0, SEED);
 
-    } catch (...) {
-        std::cout << "ERROR" << endl;
-    }
-    std::cout << "test" << endl;
-    //epoch(1);
+    pop = new  Population (g, params, true, 1.0, SEED);
+
+
+    std::cout << "simulation" << endl;
+    simulation(pop);
     std::cout << "end" << endl;
-    //first.join();
-    //VacEnvWindow::close();
+    first.join();
+    VacEnvWindow::close();
+    delete pop;
+    pop = nullptr;
     return 0;
 
 }
 
-void simulation() {
+void simulation(Population * pop) {
 
-    for(int generation = 0 ; generation < 2048 ; generation++) {
-        std::cout << "Generation" << generation << endl;
+    for(unsigned int generation = 0 ; generation < 15000 ; generation++) {
+        std::cout << ";Generation;" << generation << ";";
 
-        epoch(generation);
+        epoch(generation, pop);
+
+        Genome g = pop->GetBestGenome();
+        g.HasLoops();
+        g.CalculateDepth();
+        std::cout << ";Genome; Depth:; " << g.GetDepth();
+        std::cout << ";Loops:; " <<  g.HasLoops() ;
+        std::cout << ";NumNeurons:; " <<  g.NumNeurons() << std::endl;
+        // std::cout << "Traits:"  << std::endl;
+        // g.PrintAllTraits();
         pop->Epoch();
 
         if(generation % 5 == 4) {
@@ -136,37 +142,86 @@ void simulation() {
     }
 }
 
-void epoch(int generation ){
-    double fittnesses[POP_SIZE];
-    std::thread* threads[CORES];
+void epoch( unsigned int generation, Population * pop ){
 
+    std::vector<std::thread> threads;
 
-    int number = 512;//pop->NumGenomes();
+    int number = pop->NumGenomes();
     int part = number / CORES;
+    auto * fittnesses = new double[number];
 
-    for(int i = 0; i < CORES ; i++) {
-        std::cout << "start core" << i << endl;
-        threads[i] = new std::thread(epochPart,fittnesses,i*part,(i+1)*part,i);
+
+    for(int i = 0; i < CORES-1 ; i++) {
+        threads.emplace_back(std::thread(epochPart,fittnesses,i*part,(i+1)*part,generation,pop));
     }
+    threads.emplace_back(std::thread(epochPart,fittnesses,(CORES-1)*part,number,generation,pop));
 
     for (auto &thread : threads) {
-        std::cout << "stop core" << endl;
-        thread->join();
-        delete thread;
+        thread.join();
+
     }
 
-    std::sort(fittnesses,fittnesses + POP_SIZE - 1);
+    std::sort(fittnesses,fittnesses + number);
 
-    std::cout << generation <<" "<< fittnesses[POP_SIZE - 1] << " " << fittnesses[POP_SIZE/2] << " " <<fittnesses[0] << endl;
+    std::cout << generation <<"; "<< fittnesses[number - 1] << "; " << fittnesses[number/2] << "; " <<fittnesses[0];
+    delete[] fittnesses;
 }
 
-void epochPart(double * fittnesses ,int from, int to, int coreID)  {
-    for(int i = from; i < to; i++) {
-        fittnesses[i]  = i;
-        std::cout << i  << endl;
+void epochPart(double * fittnesses ,unsigned int from, unsigned int to,unsigned int generation, Population * pop)  {
+
+
+    for(unsigned int i = from; i < to; i++) {
+
+        double fitt = fittness(pop->AccessGenomeByIndex(i),generation);
+        fitt += fittness(pop->AccessGenomeByIndex(i),generation);
+        pop->AccessGenomeByIndex(i).SetFitness(fitt);
+        pop->AccessGenomeByIndex(i).SetEvaluated();
+
+        fittnesses[i]= fitt ;
     }
 }
 
-double fittness(Genome * g,int coreID)  {
-    return  0.0;
+double fittness(Genome & g,unsigned int generation)  {
+    double fitt = 0;
+    NeuralNetwork net ;
+    g.BuildPhenotype(net);
+
+    VacEnv env;
+
+    VacEnvWindow::acc.lock();
+    VacEnvWindow::worlds->push_back(&env);
+    VacEnvWindow::acc.unlock();
+
+    unsigned long time = 20 * 360 + 20 * 2 * generation;
+
+    std::vector<double > state = env.step(0,1.0f/20.0f);
+    std::vector<double > action;
+
+    for(unsigned long i = 0; i < time  && env.running; i++) {
+
+        net.Flush();
+        net.Input(state);
+        net.Activate();
+        action = net.Output();
+
+        int actionEncode = 0;
+        double max = 0;
+        for(int j = 0; j < action.size(); j++) {
+            if(action[j] > max) {
+                actionEncode = j;
+                max = action[j];
+            }
+        }
+
+        state = env.step(actionEncode,1.0f/20.0f);
+    }
+
+    fitt = env.score;
+
+    VacEnvWindow::acc.lock();
+    auto pos = std::find(VacEnvWindow::worlds->begin(), VacEnvWindow::worlds->end(), &env);
+    VacEnvWindow::worlds->erase(pos);
+    VacEnvWindow::acc.unlock();
+
+    return  fitt;
 }

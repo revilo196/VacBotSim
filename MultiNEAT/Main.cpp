@@ -33,18 +33,6 @@ double abs(double x)
     return x;
 }*/
 
-bool constraints(Genome& g)
-{
-    for(auto it=g.m_NeuronGenes.begin(); it!=g.m_NeuronGenes.end(); it++)
-    {
-        
-        if (boost::get<intsetelement>(it->m_Traits["z"].value).value == 64) // don't allow 4 to appear anywhere
-            return true;
-    }
-    
-    return false;
-}
-
 //std::vector<double>
 double xortest(Genome& g)
 {
@@ -71,8 +59,8 @@ double xortest(Genome& g)
         f = 0.1;
 
     return f;
-}
 
+}
 
 int main()
 {
@@ -117,16 +105,12 @@ int main()
     params.MultipointCrossoverRate = 0.4;
     params.SurvivalRate = 0.2;
 
-    params.AllowClones = false;
-    params.AllowLoops = false;
+    params.AllowClones = true;
+    params.AllowLoops = true;
     params.DontUseBiasNeuron = true;
 
     params.MutateNeuronTraitsProb = 0.2;
     params.MutateLinkTraitsProb = 0.2;
-
-    params.ArchiveEnforcement = true;
-    
-    params.CustomConstraints = constraints;
 
     TraitParameters tp1;
     tp1.m_ImportanceCoeff = 1.0;
@@ -152,29 +136,6 @@ int main()
     itp2.mut_replace_prob = 0.1;
     tp2.m_Details = itp2;
 
-    TraitParameters tp3;
-    tp3.m_ImportanceCoeff = 0.02;
-    tp3.m_MutationProb = 0.9;
-    tp3.type = "intset";
-    IntSetTraitParameters itp3;
-    intsetelement kkk;
-    kkk.value=4;
-    itp3.set.push_back(kkk);
-    kkk.value=8;
-    itp3.set.push_back(kkk);
-    kkk.value=16;
-    itp3.set.push_back(kkk);
-    kkk.value=32;
-    itp3.set.push_back(kkk);
-    kkk.value=64;
-    itp3.set.push_back(kkk);
-    itp3.probs.push_back(1);
-    itp3.probs.push_back(1);
-    itp3.probs.push_back(1);
-    itp3.probs.push_back(1);
-    itp3.probs.push_back(1);
-    tp3.m_Details = itp3;
-
     TraitParameters tps;
     tps.m_ImportanceCoeff = 0.02;
     tps.m_MutationProb = 0.9;
@@ -192,7 +153,7 @@ int main()
     itps.probs.push_back(1);
     tps.m_Details = itps;
 
-    /*TraitParameters tp3;
+    TraitParameters tp3;
     tp3.m_ImportanceCoeff = 0.0;
     tp3.m_MutationProb = 0.9;
     tp3.type = "str";
@@ -201,22 +162,21 @@ int main()
     itp3.set.push_back("false");
     itp3.probs.push_back(1);
     itp3.probs.push_back(1);
-    tp3.m_Details = itp3;*/
+    tp3.m_Details = itp3;
 
     params.GenomeTraits["v"] = tp1;
     params.GenomeTraits["x"] = tp2;
     params.GenomeTraits["y"] = tps;
-    params.NeuronTraits["z"] = tp3;
+    params.LinkTraits["z"] = tp3;
 
     Genome s(0, 1,
-             1,
+             0,
              1,
              false,
              UNSIGNED_SIGMOID,
              UNSIGNED_SIGMOID,
-             1,
-             params,
-             2);
+             0,
+             params);
 
     Population pop(s, params, true, 1.0, time(0));
 

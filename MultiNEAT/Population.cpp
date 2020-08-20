@@ -73,45 +73,9 @@ Population::Population(const Genome& a_Seed, const Parameters& a_Parameters,
     {
         if (a_RandomizeWeights)
         {
-            bool is_invalid = true;
-            while (is_invalid)
-            {
-                m_Genomes[i].Randomize_LinkWeights(a_RandomizationRange, m_RNG);
-                // randomize the traits as well
-                m_Genomes[i].Randomize_Traits(a_Parameters, m_RNG);
-                // and mutate nodes one initial time
-                m_Genomes[i].Mutate_NeuronActivations_A(a_Parameters, m_RNG);
-                m_Genomes[i].Mutate_NeuronActivations_B(a_Parameters, m_RNG);
-                m_Genomes[i].Mutate_NeuronActivation_Type(a_Parameters, m_RNG);
-                m_Genomes[i].Mutate_NeuronTimeConstants(a_Parameters, m_RNG);
-                m_Genomes[i].Mutate_NeuronBiases(a_Parameters, m_RNG);
-
-                // check in the population if there is a clone of that genome
-                is_invalid = false;
-                if (!m_Parameters.AllowClones)
-                {
-                    for(unsigned int j=0; j<m_Genomes.size(); j++)
-                    {
-                        if (i != j) // don't compare the same genome
-                        {
-                            if (m_Genomes[i].CompatibilityDistance(m_Genomes[j], m_Parameters) < 0.000001) // equal genomes?
-                            {
-                                is_invalid = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                
-                // Also don't let any genome to fail the constraints
-                if (!is_invalid) // doesn't make sense to do the test if already failed
-                {
-                    if (m_Genomes[i].FailsConstraints(a_Parameters))
-                    {
-                        is_invalid = true;
-                    }
-                }
-            }
+            m_Genomes[i].Randomize_LinkWeights(a_RandomizationRange, m_RNG);
+            // randomize the traits as well
+            m_Genomes[i].Randomize_Traits(a_Parameters, m_RNG);
         }
 
         //m_Genomes[i].CalculateDepth();
@@ -129,6 +93,17 @@ Population::Population(const Genome& a_Seed, const Parameters& a_Parameters,
         m_SearchMode = BLENDED;
     }
 
+    // initial mutation
+    /*for (unsigned int i = 0; i < m_Species.size(); i++)
+    {
+        for (unsigned int j = 0; j < m_Species[i].m_Individuals.size(); j++)
+        {
+            m_Species[i].MutateGenome( true, *this, m_Species[i].m_Individuals[j], m_Parameters, m_RNG );
+        }
+    }
+
+    Speciate();*/
+    
     // Initialize the innovation database
     m_InnovationDatabase.Init(a_Seed);
 
@@ -413,7 +388,7 @@ void Population::UpdateSpecies()
     for(unsigned int i=0; i<m_Species.size(); i++)
     {
         // Reset the species and update its age
-        m_Species[i].IncreaseAgeGens();
+        m_Species[i].IncreaseAge();
         m_Species[i].IncreaseGensNoImprovement();
         m_Species[i].SetOffspringRqd(0);
 
@@ -435,7 +410,7 @@ void Population::UpdateSpecies()
     // so it will die off anyway.
     if ((t_oldbestid != t_newbestid) && (t_oldbestid != -1))
     {
-        m_Species[t_oldbestidx].ResetAgeGens();
+        m_Species[t_oldbestidx].ResetAge();
     }
 }
 
@@ -562,8 +537,8 @@ void Population::Epoch()
                 }
 
                 // Now reset the stagnation counter and species age
-                m_Species[0].ResetAgeGens();
-                m_Species[1].ResetAgeGens();
+                m_Species[0].ResetAge();
+                m_Species[1].ResetAge();
                 m_GensSinceBestFitnessLastChanged = 0;
             }
         }
@@ -619,7 +594,7 @@ void Population::Epoch()
                     // reset the age of species
                     for(unsigned int i=0; i<m_Species.size(); i++)
                     {
-                        m_Species[i].ResetAgeGens();
+                        m_Species[i].ResetAge();
                     }
                 }
             }
@@ -639,7 +614,7 @@ void Population::Epoch()
                 // reset the age of species
                 for(unsigned int i=0; i<m_Species.size(); i++)
                 {
-                    m_Species[i].ResetAgeGens();
+                    m_Species[i].ResetAge();
                 }
             }
         }
@@ -760,25 +735,10 @@ Genome& Population::AccessGenomeByIndex(unsigned int const a_idx)
     }
 
     // not found?! return dummy
-    throw std::runtime_error("No such index in population");
+    return g_dummy;
 }
 
-Genome& Population::AccessGenomeByID(unsigned int const a_id)
-{
-    for (unsigned int i = 0; i < m_Species.size(); i++)
-    {
-        for (unsigned int j = 0; j < m_Species[i].m_Individuals.size(); j++)
-        {
-            if (m_Species[i].m_Individuals[j].GetID() == a_id)// reached the ID?
-            {
-                return m_Species[i].m_Individuals[j];
-            }
-        }
-    }
-    
-    // not found?!
-    throw std::runtime_error("No such ID in population");
-}
+
 
 
 
@@ -919,6 +879,9 @@ void Population::ReassignSpecies(unsigned int a_genome_idx)
 }
 
 
+
+
+
 // Main realtime loop. We assume that the whole population was evaluated once before calling this.
 // Returns a pointer to the baby in the population. It will be the only individual that was not evaluated.
 // Set the m_Evaluated flag of the baby to true after evaluation! 
@@ -934,7 +897,7 @@ Genome* Population::Tick(Genome& a_deleted_genome)
     // Find and save the best genome and fitness
     for(unsigned int i=0; i<m_Species.size(); i++)
     {
-        m_Species[i].IncreaseEvalsNoImprovement();
+        m_Species[i].IncreaseGensNoImprovement();
 
         for(unsigned int j=0; j<m_Species[i].m_Individuals.size(); j++)
         {
@@ -949,7 +912,7 @@ Genome* Population::Tick(Genome& a_deleted_genome)
                 // Reset the stagnation counter only if the fitness jump is greater or equal to the delta.
                 if (fabs(t_Fitness - m_BestFitnessEver) >= m_Parameters.StagnationDelta)
                 {
-                    m_EvalsSinceBestFitnessLastChanged = 0;
+                    m_GensSinceBestFitnessLastChanged = 0;
                 }
 
                 m_BestFitnessEver = t_Fitness;
@@ -972,7 +935,7 @@ Genome* Population::Tick(Genome& a_deleted_genome)
             if (m_Species[i].m_Individuals[j].GetFitness() >= m_Species[i].GetBestFitness())
             {
                 m_Species[i].m_BestFitness = m_Species[i].m_Individuals[j].GetFitness();
-                m_Species[i].m_EvalsNoImprovement = 0;
+                m_Species[i].m_GensNoImprovement = 0;
             }
         }
     }
@@ -1036,7 +999,7 @@ Genome* Population::Tick(Genome& a_deleted_genome)
     if (t_cur_species == m_Species.end())
     {
         // create the first species and place the baby there
-        m_Species.push_back( Species(t_baby, GetNextSpeciesID()) );
+        m_Species.push_back( Species(t_baby, GetNextSpeciesID()));
         // the last one
         t_to_return = &(m_Species[ m_Species.size()-1 ].m_Individuals[ m_Species[ m_Species.size()-1 ].m_Individuals.size() - 1]);
         IncrementNextSpeciesID();

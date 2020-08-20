@@ -8,6 +8,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 
 #include "Box2D/Box2D.h"
@@ -32,7 +33,7 @@ public:
     static float scale_y;
     static float offset_x;
     static float offset_y;
-
+    static std::mutex acc;
     static void init(unsigned int m_size, float wxmin,float wxmax,float wymin,float wymax);
     static void close();
     static int run();

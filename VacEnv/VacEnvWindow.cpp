@@ -2,6 +2,8 @@
 // Created by Oliver on 12.02.2019.
 //
 
+#include <iostream>
+
 #include "VacEnvWindow.h"
 #include "VacEnv.h"
 
@@ -12,19 +14,21 @@ float VacEnvWindow::scale_y;
 float VacEnvWindow::offset_x;
 float VacEnvWindow::offset_y;
 unsigned int VacEnvWindow::m_size;
-
+std::mutex VacEnvWindow::acc;
 void  DrawLineGreen(float x1, float y1, float x2, float y2) {
     S2D_DrawLine(x1,y1,x2,y2,2.0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1);
 }
 
 void VacEnvWindow::render(){
-
+    VacEnvWindow::acc.lock();
     for (VacEnv* e : (*worlds)) {
-        //e->acc.lock();
+//        e->acc.lock();
+       // std::cout << e->world << "RENDER" << std::endl;
         render_world(e->world);
-        render_map(e->room->map);
-        //e->acc.unlock();
+       // render_map(e->room->map);
+    //    e->acc.unlock();
     }
+    VacEnvWindow::acc.unlock();
 }
 
 void VacEnvWindow::render_world(b2World* w){
@@ -58,8 +62,8 @@ void VacEnvWindow::render_shape(const b2Shape* s,b2Vec2 p, b2Vec2 rot){
 }
 
 void VacEnvWindow::render_map(std::vector<std::vector<bool> > map) {
-    for(int i = 0; i < map.size(); i+= 5) {
-        for(int j = 0; j < map[i].size(); j+= 5) {
+    for(int i = 0; i < map.size(); i+= 10) {
+        for(int j = 0; j < map[i].size(); j+= 10) {
             if(map[i][j]) {
                 float x = i * ((float) m_size / (float) map.size());
                 float y = j * ((float) m_size / (float) map[i].size());
@@ -87,12 +91,40 @@ void VacEnvWindow::init(unsigned int size, float wxmin,float wxmax,float wymin,f
 };
 
 void VacEnvWindow::close() {
+    acc.lock();
     S2D_Close(window);
     delete window;
     delete worlds;
+    window = nullptr;
+    worlds = nullptr;
+    acc.unlock();
 }
 
 int VacEnvWindow::run(){
     return S2D_Show(window);
 }
 
+extern "C" {
+__declspec(dllexport)  void win_init(unsigned int size, float wxmin,float wxmax,float wymin,float wymax)
+    {VacEnvWindow::init(size,wxmin,wxmax,wymin,wymax );}
+
+__declspec(dllexport)    void win_close() {VacEnvWindow::close();}
+__declspec(dllexport)    int win_run() { return VacEnvWindow::run() ;}
+
+__declspec(dllexport)    void win_add_world(VacEnv* world) {
+        VacEnvWindow::acc.lock();
+        VacEnvWindow::worlds->push_back(world);
+        VacEnvWindow::acc.unlock();
+    }
+
+
+__declspec(dllexport)   void win_remove_world(VacEnv* world) {
+
+        VacEnvWindow::acc.lock();
+        auto pos = std::find(VacEnvWindow::worlds->begin(), VacEnvWindow::worlds->end(), world);
+        VacEnvWindow::worlds->erase(pos);
+        VacEnvWindow::acc.unlock();
+
+    }
+
+}
